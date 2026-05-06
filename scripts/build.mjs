@@ -10,7 +10,8 @@ import { fileURLToPath } from 'node:url'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const ROOT = path.join(__dirname, '..')
 
-const PH_TEMPLATE_HOST = '__VITE_CHAT_WIDGET_TEMPLATE_HOST__'
+/** Whole string literal (quotes included) is replaced with JSON.stringify(html). */
+const PH_EMBEDDED_TEMPLATE = '"___CHAT_WIDGET_EMBEDDED_TEMPLATE___"'
 const PH_API_URL = '__VITE_API_URL__'
 
 function parseEnvFile(filePath) {
@@ -39,10 +40,11 @@ function parseEnvFile(filePath) {
     return out
 }
 
-function injectPlaceholders(source, env) {
-    const host = env.VITE_CHAT_WIDGET_TEMPLATE_HOST ?? ''
+function injectPlaceholders(source, env, embeddedTemplateLiteral) {
     const api = env.VITE_API_URL ?? ''
-    return source.replaceAll(PH_TEMPLATE_HOST, host).replaceAll(PH_API_URL, api)
+    return source
+        .replaceAll(PH_EMBEDDED_TEMPLATE, embeddedTemplateLiteral)
+        .replaceAll(PH_API_URL, api)
 }
 
 function main() {
@@ -56,7 +58,13 @@ function main() {
     fs.mkdirSync(distDir, { recursive: true })
 
     const raw = fs.readFileSync(srcJs, 'utf8')
-    fs.writeFileSync(path.join(distDir, 'chat-widget.js'), injectPlaceholders(raw, env), 'utf8')
+    const templateHtml = fs.readFileSync(srcTpl, 'utf8')
+    const embeddedTemplateLiteral = JSON.stringify(templateHtml)
+    fs.writeFileSync(
+        path.join(distDir, 'chat-widget.js'),
+        injectPlaceholders(raw, env, embeddedTemplateLiteral),
+        'utf8',
+    )
     fs.copyFileSync(srcTpl, path.join(distDir, 'chat-widget.template.html'))
 
     console.log('Wrote dist/chat-widget.js and dist/chat-widget.template.html')

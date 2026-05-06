@@ -2,8 +2,8 @@
   const WIDGET_ID = "tech-fa-chat-widget";
   const TOGGLE_ID = "tech-fa-chat-toggle";
   const BOX_ID = "tech-fa-chat-box";
-  // Placeholders replaced by `npm run build` (scripts/build.mjs); see .env.example.
-  const TEMPLATE_URL = `__VITE_CHAT_WIDGET_TEMPLATE_HOST__/chat-widget.template.html`;
+  // Replaced by `npm run build` with JSON.stringify(public/chat-widget.template.html).
+  const EMBEDDED_TEMPLATE_SOURCE = "___CHAT_WIDGET_EMBEDDED_TEMPLATE___";
 
   function createStyles() {
     if (document.getElementById(WIDGET_ID + "-styles")) {
@@ -699,12 +699,7 @@
       return;
     }
 
-    const response = await fetch(TEMPLATE_URL);
-    if (!response.ok) {
-      throw new Error("Failed to load chat widget template");
-    }
-
-    const templateText = await response.text();
+    const templateText = EMBEDDED_TEMPLATE_SOURCE;
     const template = parseTemplate(templateText);
     const fragment = template.content.cloneNode(true);
     const root = fragment.querySelector("#" + WIDGET_ID);
