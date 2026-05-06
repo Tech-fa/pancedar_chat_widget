@@ -1,0 +1,9 @@
+{
+  "name": "chat-widget-standalone",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "serve": "npx --yes serve dist -p 4174"
+  }
+}
