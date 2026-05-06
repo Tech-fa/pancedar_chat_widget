@@ -3,17 +3,6 @@ name: Deploy chat widget to S3
 on:
   push:
     branches: [main]
-    paths:
-      - "pancedar_chat_widget/**"
-      - ".github/workflows/pancedar-chat-widget.yml"
-  workflow_dispatch:
-
-permissions:
-  contents: read
-
-defaults:
-  run:
-    working-directory: pancedar_chat_widget
 
 jobs:
   deploy:
@@ -42,7 +31,7 @@ jobs:
 
       - name: Push to S3 and invalidate CloudFront
         env:
-          S3_BUCKET: ${{ secrets.S3_BUCKET }}
+          S3_BUCKET: ${{ vars.S3_BUCKET }}
           CLOUDFRONT_DISTRIBUTION_ID: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}
         run: |
           aws s3 sync dist "s3://${S3_BUCKET}"
