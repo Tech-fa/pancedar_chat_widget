@@ -3,7 +3,7 @@
   const TOGGLE_ID = "tech-fa-chat-toggle";
   const BOX_ID = "tech-fa-chat-box";
   // Replaced by `npm run build` with JSON.stringify(public/chat-widget.template.html).
-  const EMBEDDED_TEMPLATE_SOURCE = "<template id=\"tech-fa-chat-widget-template\">\n    <div id=\"tech-fa-chat-widget\">\n        <div id=\"tech-fa-chat-box\" data-open=\"false\" aria-hidden=\"true\">\n            <div class=\"chat-header\">\n                <div class=\"chat-header-title\">\n                    <span class=\"chat-avatar\" data-ai-avatar>AI</span>\n                    <span data-ai-name>Chat Support</span>\n                </div>\n                <button type=\"button\" data-chat-close aria-label=\"Close chat\">✕</button>\n            </div>\n            <div class=\"chat-body\">\n                <div class=\"chat-messages\" data-chat-messages>\n                    <div class=\"chat-empty\" data-chat-empty>Open chat to connect...</div>\n                </div>\n                <!-- <div class=\"chat-meta\" data-api-status>status: idle</div> -->\n            </div>\n            <form class=\"chat-composer\" data-chat-form>\n                <textarea\n                    data-chat-input\n                    rows=\"2\"\n                    autocomplete=\"off\"\n                    placeholder=\"Type your message...\"\n                ></textarea>\n                <button type=\"submit\" class=\"chat-send\" aria-label=\"Send message\">\n                    <svg xmlns=\"http://www.w3.org/2000/svg\" width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\">\n                        <line x1=\"22\" y1=\"2\" x2=\"11\" y2=\"13\"></line>\n                        <polygon points=\"22 2 15 22 11 13 2 9 22 2\"></polygon>\n                    </svg>\n                </button>\n            </form>\n        </div>\n        <button id=\"tech-fa-chat-toggle\" type=\"button\" aria-label=\"Toggle chat\">💬</button>\n    </div>\n</template>\n";
+  const EMBEDDED_TEMPLATE_SOURCE = "<template id=\"tech-fa-chat-widget-template\">\n    <div id=\"tech-fa-chat-widget\">\n        <div id=\"tech-fa-chat-box\" data-open=\"false\" aria-hidden=\"true\">\n            <div class=\"chat-header\">\n                <div class=\"chat-header-title\">\n                    <span class=\"chat-avatar\" data-ai-avatar>AI</span>\n                    <span data-ai-name>Chat Support</span>\n                </div>\n                <button type=\"button\" data-chat-close aria-label=\"Close chat\">✕</button>\n            </div>\n            <div class=\"chat-body\">\n                <!-- URLs in message bubbles are linkified in chat-widget.js (target _blank; clicks send actionInfo.linkedClicked). -->\n                <div class=\"chat-messages\" data-chat-messages>\n                    <div class=\"chat-empty\" data-chat-empty>Open chat to connect...</div>\n                </div>\n                <!-- <div class=\"chat-meta\" data-api-status>status: idle</div> -->\n            </div>\n            <form class=\"chat-composer\" data-chat-form>\n                <textarea\n                    data-chat-input\n                    rows=\"2\"\n                    autocomplete=\"off\"\n                    placeholder=\"Type your message...\"\n                ></textarea>\n                <button type=\"submit\" class=\"chat-send\" aria-label=\"Send message\">\n                    <svg xmlns=\"http://www.w3.org/2000/svg\" width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\">\n                        <line x1=\"22\" y1=\"2\" x2=\"11\" y2=\"13\"></line>\n                        <polygon points=\"22 2 15 22 11 13 2 9 22 2\"></polygon>\n                    </svg>\n                </button>\n            </form>\n        </div>\n        <button id=\"tech-fa-chat-toggle\" type=\"button\" aria-label=\"Toggle chat\">💬</button>\n    </div>\n</template>\n";
 
   function createStyles() {
     if (document.getElementById(WIDGET_ID + "-styles")) {
@@ -180,6 +180,16 @@
                 border-bottom-left-radius: 4px;
             }
 
+            #${BOX_ID} .chat-message a.chat-message-link {
+                color: #bfdbfe;
+                text-decoration: underline;
+                word-break: break-all;
+            }
+
+            #${BOX_ID} .chat-message-row.ai .chat-message a.chat-message-link {
+                color: #2563eb;
+            }
+
             #${BOX_ID} .chat-composer {
                 display: flex;
                 align-items: flex-end;
@@ -225,6 +235,51 @@
             #${BOX_ID} .chat-composer textarea:disabled {
                 cursor: not-allowed;
                 opacity: 0.6;
+            }
+
+            #${BOX_ID} .chat-message--typing {
+                min-width: 52px;
+                padding: 12px 14px;
+            }
+
+            #${BOX_ID} .chat-typing-dots {
+                display: inline-flex;
+                align-items: center;
+                gap: 4px;
+                vertical-align: middle;
+            }
+
+            #${BOX_ID} .chat-typing-dots span {
+                width: 7px;
+                height: 7px;
+                border-radius: 50%;
+                background: #9ca3af;
+                animation: tech-fa-chat-typing-bounce 1.15s infinite ease-in-out;
+            }
+
+            #${BOX_ID} .chat-typing-dots span:nth-child(1) {
+                animation-delay: 0ms;
+            }
+
+            #${BOX_ID} .chat-typing-dots span:nth-child(2) {
+                animation-delay: 160ms;
+            }
+
+            #${BOX_ID} .chat-typing-dots span:nth-child(3) {
+                animation-delay: 320ms;
+            }
+
+            @keyframes tech-fa-chat-typing-bounce {
+                0%,
+                60%,
+                100% {
+                    opacity: 0.35;
+                    transform: translateY(0);
+                }
+                30% {
+                    opacity: 1;
+                    transform: translateY(-5px);
+                }
             }
         `;
     document.head.appendChild(style);
@@ -390,7 +445,7 @@
   async function loadWidgetTheme(appName) {
     try {
       const requestUrl = new URL(
-        `/connector/chat-widget/init`,
+        `http://localhost:4000/connector/chat-widget/init`,
         window.location.origin,
       );
       const response = await fetch(requestUrl.toString(), {
@@ -416,11 +471,66 @@
     }
   }
 
+  function appendLinkifiedText(parent, text) {
+    const re = /https?:\/\/[^\s<>"']+/gi;
+    let lastIndex = 0;
+    let match;
+    while ((match = re.exec(text)) !== null) {
+      const fullMatch = match[0];
+      const href = fullMatch.replace(/[.,;:!?)]+$/, "");
+      const punctTail = fullMatch.slice(href.length);
+
+      if (match.index > lastIndex) {
+        parent.appendChild(
+          document.createTextNode(text.slice(lastIndex, match.index)),
+        );
+      }
+
+      const anchor = document.createElement("a");
+      anchor.href = href;
+      anchor.target = "_blank";
+      anchor.rel = "noopener noreferrer";
+      anchor.className = "chat-message-link";
+      anchor.textContent = href;
+      parent.appendChild(anchor);
+
+      if (punctTail) {
+        parent.appendChild(document.createTextNode(punctTail));
+      }
+
+      lastIndex = match.index + fullMatch.length;
+    }
+
+    if (lastIndex < text.length) {
+      parent.appendChild(document.createTextNode(text.slice(lastIndex)));
+    }
+  }
+
+  function isMessagesPinnedToBottom(messagesElement, thresholdPx) {
+    const threshold = thresholdPx != null ? thresholdPx : 48;
+    return (
+      messagesElement.scrollHeight -
+        messagesElement.scrollTop -
+        messagesElement.clientHeight <=
+      threshold
+    );
+  }
+
+  function scrollNewAssistantRowIntoView(messagesElement, row) {
+    const rowTop = row.getBoundingClientRect().top;
+    const containerTop = messagesElement.getBoundingClientRect().top;
+    const nextScrollTop =
+      rowTop - containerTop + messagesElement.scrollTop - messagesElement.clientTop;
+    messagesElement.scrollTop = Math.max(0, nextScrollTop);
+  }
+
   function appendMessage(root, role, text, aiName, aiIcon) {
     const messagesElement = root.querySelector("[data-chat-messages]");
     if (!messagesElement || !text) {
       return;
     }
+
+    const wasPinnedToBottom = isMessagesPinnedToBottom(messagesElement);
 
     const emptyElement = root.querySelector("[data-chat-empty]");
     if (emptyElement) {
@@ -446,27 +556,133 @@
 
     const bubble = document.createElement("div");
     bubble.className = "chat-message";
-    bubble.textContent = text;
+    appendLinkifiedText(bubble, text);
     row.appendChild(bubble);
 
     messagesElement.appendChild(row);
-    messagesElement.scrollTop = messagesElement.scrollHeight;
+
+    if (role === "user") {
+      messagesElement.scrollTop = messagesElement.scrollHeight;
+    } else if (wasPinnedToBottom) {
+      scrollNewAssistantRowIntoView(messagesElement, row);
+    }
   }
 
-  function normalizeSocketMessage(event) {
-    if (typeof event.data !== "string") {
-      return { role: "ai", text: String(event.data || "") };
+  function removeTypingIndicator(state) {
+    if (state.typingRowEl && state.typingRowEl.parentNode) {
+      state.typingRowEl.parentNode.removeChild(state.typingRowEl);
+    }
+    state.typingRowEl = null;
+  }
+
+  function showTypingIndicator(root, state) {
+    const messagesElement = root.querySelector("[data-chat-messages]");
+    if (!messagesElement) {
+      return;
     }
 
-    try {
-      const payload = JSON.parse(event.data);
-      return {
-        role: payload.type,
-        text: payload.message || payload.content || payload.text || "",
-      };
-    } catch (_error) {
-      return { role: "ai", text: event.data };
+    removeTypingIndicator(state);
+
+    const wasPinnedToBottom = isMessagesPinnedToBottom(messagesElement);
+    const emptyElement = root.querySelector("[data-chat-empty]");
+    if (emptyElement) {
+      emptyElement.remove();
     }
+
+    const row = document.createElement("div");
+    row.className = "chat-message-row ai";
+    row.setAttribute("aria-label", state.aiName + " is typing");
+    row.setAttribute("aria-busy", "true");
+
+    const avatar = document.createElement("span");
+    avatar.className = "chat-avatar";
+    if (state.aiIcon) {
+      const image = document.createElement("img");
+      image.src = state.aiIcon;
+      image.alt = state.aiName || "AI";
+      avatar.appendChild(image);
+    } else {
+      avatar.textContent = getInitials(state.aiName);
+    }
+    row.appendChild(avatar);
+
+    const bubble = document.createElement("div");
+    bubble.className = "chat-message chat-message--typing";
+    const dots = document.createElement("span");
+    dots.className = "chat-typing-dots";
+    for (let i = 0; i < 3; i++) {
+      dots.appendChild(document.createElement("span"));
+    }
+    bubble.appendChild(dots);
+    row.appendChild(bubble);
+
+    messagesElement.appendChild(row);
+    state.typingRowEl = row;
+
+    if (wasPinnedToBottom) {
+      messagesElement.scrollTop = messagesElement.scrollHeight;
+    }
+  }
+
+  function handleSocketInboundMessage(root, state, event) {
+    let payload;
+    let rawFallback = "";
+
+    if (typeof event.data !== "string") {
+      rawFallback = String(event.data ?? "");
+      payload = {};
+    } else {
+      try {
+        payload = JSON.parse(event.data);
+      } catch (_error) {
+        appendMessage(root, "ai", event.data, state.aiName, state.aiIcon);
+        return;
+      }
+    }
+
+    const msgType =
+      typeof payload.type === "string" ? payload.type : null;
+    const text =
+      payload.message ?? payload.content ?? payload.text ?? rawFallback ?? "";
+
+    if (msgType === "typing") {
+      showTypingIndicator(root, state);
+      return;
+    }
+
+    removeTypingIndicator(state);
+
+    if (msgType === "ready") {
+      return;
+    }
+
+    if (msgType === "error") {
+      appendMessage(
+        root,
+        "ai",
+        text || "Something went wrong",
+        state.aiName,
+        state.aiIcon,
+      );
+      return;
+    }
+
+    if (!msgType && text) {
+      appendMessage(root, "ai", text, state.aiName, state.aiIcon);
+      return;
+    }
+
+    if (!text) {
+      return;
+    }
+
+    appendMessage(
+      root,
+      msgType === "user" ? "user" : "ai",
+      text,
+      state.aiName,
+      state.aiIcon,
+    );
   }
 
   function arrayBufferToHex(buffer) {
@@ -516,7 +732,7 @@
       setApiStatus(root, "loading");
       setComposerEnabled(root, false);
       const requestUrl = new URL(
-        `/connector/chat-widget/register`,
+        `http://localhost:4000/connector/chat-widget/register`,
         window.location.origin,
       );
       const timestamp = Date.now().toString();
@@ -559,25 +775,20 @@
         setComposerEnabled(root, true);
       });
       socket.addEventListener("message", function (event) {
-        const message = normalizeSocketMessage(event);
-        appendMessage(
-          root,
-          message.role,
-          message.text,
-          state.aiName,
-          state.aiIcon,
-        );
+        handleSocketInboundMessage(root, state, event);
       });
       socket.addEventListener("close", function () {
         if (state.socket !== socket) {
           return;
         }
 
+        removeTypingIndicator(state);
         setApiStatus(root, "disconnected");
         setComposerEnabled(root, false);
         scheduleReconnect(root, state);
       });
       socket.addEventListener("error", function () {
+        removeTypingIndicator(state);
         setApiStatus(root, "connection error");
         setComposerEnabled(root, false);
       });
@@ -620,6 +831,7 @@
 
     let hasLoadedOnOpen = false;
     const state = {
+      typingRowEl: null,
       socket: null,
       appName: options.appName,
       secret: options.secret,
@@ -646,6 +858,24 @@
     if (closeButton) {
       closeButton.addEventListener("click", function () {
         setOpenState(box, false);
+      });
+    }
+
+    const messagesElement = root.querySelector("[data-chat-messages]");
+    if (messagesElement) {
+      messagesElement.addEventListener("click", function (event) {
+        const anchor = event.target.closest("a.chat-message-link");
+        if (
+          !anchor ||
+          !messagesElement.contains(anchor) ||
+          !state.socket ||
+          state.socket.readyState !== WebSocket.OPEN
+        ) {
+          return;
+        }
+        state.socket.send(
+          JSON.stringify({ actionInfo: { linkedClicked: true } }),
+        );
       });
     }
 
